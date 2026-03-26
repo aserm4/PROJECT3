@@ -1,73 +1,145 @@
+/***************************************************************************
+ fifo.cpp  -  code to allow interprocess communication via a fifo, or "names pipe"
+ *
+* copyright : (C) 2009 by Jim Skon
+*
+* This code permits the creation and use of FIFOs for communication
+* between processes.  
+* 
+* the named piped is created and used in /tmp
+*
+***************************************************************************/
+
 #include "fifo.h"
-#include <iostream>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <cstdlib>
-#include <cstring>
 
 using namespace std;
 
-// Default constructor
-Fifo::Fifo() {
-    pipename = "";
-    fd = -1;
+Fifo::Fifo(){
+  fd = 0;
 }
 
-// Constructor with pipe name
-Fifo::Fifo(string name) {
-    pipename = "/home/class/csc3004/tmp/" + SIG + name;
+Fifo::Fifo(string name){
+  // create a named pipe (FIFO)
+  // build the name string
+  pipename = PATH + SIG + name;
 
-    // Create the FIFO if it doesn't exist
-    mkfifo(pipename.c_str(), 0666);
+  umask(0);
+  // Create (or open) the fifo
+  int result = mknod(pipename.c_str(),MODE | S_IFIFO, 0);
+
+  if ((result == -1) && (errno != EEXIST)) {
+    cout << "Error creating pipe: " << name << endl;
+    return;
+  }
+  cout << "Success creating pipe: " << name << endl;
+  fd = 0;
+  return;
+
 }
 
-// Open pipe for reading
-void Fifo::openread() {
-    fd = open(pipename.c_str(), O_RDONLY);
-    if (fd < 0) {
-        perror("openread");
-        exit(1);
-    }
-}
-
-// Open pipe for writing
 void Fifo::openwrite() {
-    fd = open(pipename.c_str(), O_WRONLY);
-    if (fd < 0) {
-        perror("openwrite");
-        exit(1);
-    }
-}
+  if (fd !=0) {
+    cout << "Fifo already opened: " << pipename << endl;
+    return;
+  }
+  // Open the pipe
+  fd = open(pipename.c_str(),O_WRONLY);
 
-// Close pipe
+  // Check if open succeeded
+  if (fd ==-1) {
+	cout << "Error - bad input pipe: " << pipename << endl;
+	return;
+  }
+}
+void Fifo::openread() {
+  if (fd !=0) {
+    cout << "Fifo already opened: " << pipename << endl;
+    return;
+  }
+  // Open the pipe
+  fd = open(pipename.c_str(),O_RDONLY);
+
+  // Check if open succeeded
+  if (fd ==-1) {
+	cout << "Error - bad input pipe: " << pipename << endl;
+	return;
+  }
+}
+  
 void Fifo::fifoclose() {
-    close(fd);
+  close(fd);
+  fd = 0;
+  
 }
 
-// Receive a message
+
+// Receive a message from a FIFO (named pipe)
 string Fifo::recv() {
-    char buf[MaxMess];
-    int i = 0;
-    char ch;
+  if (fd ==0) {
+    cout << "Fifo not open for read: " << pipename << endl;
+    return ("");
+  }
 
-    while (i < MaxMess - 1) {
-        int n = read(fd, &ch, 1);
+  int length, i;
+  string message;
+  bool done;
+  int bytes;
+  char inbuff;
 
-        if (n <= 0) break;
+  // clear message buffer
+  message = "";
+  // read until we see an end of message line
+  done = false;
+  i = 0;
 
-        if (ch == '\n') break;
+  while (i<MaxMess && !done) {
+    // Read the next character in the fifo
+    bytes = read(fd, &inbuff,1);
 
-        buf[i++] = ch;
+    // -1 means something isn't working
+    if (bytes ==-1) {
+      cout << "Error - bad read on input pipe: " << pipename << endl;
+      return("");
     }
-
-    buf[i] = '\0';
-    return string(buf);
+    // check if nothing was read
+    if (bytes > 0) {
+      // Check if end of message
+      if (inbuff == MESSTERM && (i > 0)) {
+	done = true;
+      } else {
+	i++;
+	message += inbuff;
+      }
+    } else {
+      // Nothing to read, try to open
+      fifoclose();
+      openread();
+    }
+  }
+  return(message);
 }
 
-// Send a message
+// Send a message to a FIFO (named pipe)
+// Return 0 if fails, 1 if succeeds
 void Fifo::send(string message) {
-    string msg = message + "\n";
-    write(fd, msg.c_str(), msg.length());
+  if (fd ==0) {
+    cout << "Fifo not open for send: " << pipename << endl;
+    return;
+  }
+
+  int bytes;
+
+  // Append end of message terminator
+  message = message + MESSTERM;
+  bytes = write(fd, message.c_str(),message.length());
+  if (bytes ==-1) {
+    cout << "Error - bad write on output pipe: " << pipename << endl;
+    return;
+  }
+    if (bytes == 0) {
+      cout << "Error - nothing written: " << pipename << endl;
+      return;
+    }
+  return;
 }
+

@@ -21,12 +21,16 @@ string GetNextToken(string& str, const string& delimiters)
 // Constructors
 Ref::Ref() : book(0), chapter(0), verse(0) {}
 
+// ? FIXED parsing constructor (replaces fragile token logic)
 Ref::Ref(const string s)
 {
-    string rtext = s;
-    book = atoi(GetNextToken(rtext, ":").c_str());
-    chapter = atoi(GetNextToken(rtext, ":").c_str());
-    verse = atoi(GetNextToken(rtext, " ").c_str());
+    size_t p1 = s.find(':');
+    size_t p2 = s.find(':', p1 + 1);
+    size_t p3 = s.find(' ', p2 + 1);
+
+    book = atoi(s.substr(0, p1).c_str());
+    chapter = atoi(s.substr(p1 + 1, p2 - p1 - 1).c_str());
+    verse = atoi(s.substr(p2 + 1, p3 - p2 - 1).c_str());
 }
 
 Ref::Ref(const int b, const int c, const int v) : book(b), chapter(c), verse(v) {}

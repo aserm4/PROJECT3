@@ -12,12 +12,6 @@
  * A Javascript client function invokes an AJAX request,
  * passing the input form data as the standard input string.
  *
- * The cgi.getElement function parses the input string, searching for the matching
- * field name, and returing a "form_iterator" oject, which contains the actual
- * string the user entered into the corresponding field. The actual values can be
- * accessed by dereferencing the form iterator twice, e.g. **verse
- * refers to the actual string entered in the form's "verse" field.
- *
  * STUDENT NAME: shane busch
  */
 
@@ -38,156 +32,166 @@ using namespace cgicc;
 
 int main()
 {
-   /* A CGI program must send a response header with content type
-    * back to the web client before any other output.
-    * For an AJAX request, our response is not a complete HTML document,
-    * so the response type is just plain text to insert into the web page.
-    */
-   cout << "Content-Type: text/plain\n\n";
+    /* A CGI program must send a response header with content type
+     * back to the web client before any other output.
+     * For an AJAX request, our response is not a complete HTML document,
+     * so the response type is just plain text to insert into the web page.
+     */
+    cout << "Content-Type: text/plain\n\n";
 
-   Cgicc cgi;  // create object used to access CGI request data
+    Cgicc cgi;  // create object used to access CGI request data
 
-   // GET THE INPUT DATA
-   // browser sends us a string of field name/value pairs from HTML form
-   // retrieve the value for each appropriate field name
-   form_iterator st = cgi.getElement("search_type");
-   form_iterator bibleV = cgi.getElement("BibleV");
-   form_iterator book = cgi.getElement("book");
-   form_iterator chapter = cgi.getElement("chapter");
-   form_iterator verse = cgi.getElement("verse");
-   form_iterator nv = cgi.getElement("num_verse");
+    // GET THE INPUT DATA
+    // browser sends us a string of field name/value pairs from HTML form
+    // retrieve the value for each appropriate field name
+    form_iterator st = cgi.getElement("search_type");
+    form_iterator bibleV = cgi.getElement("BibleV");
+    form_iterator book = cgi.getElement("book");
+    form_iterator chapter = cgi.getElement("chapter");
+    form_iterator verse = cgi.getElement("verse");
+    form_iterator nv = cgi.getElement("num_verse");
 
-   // Convert and check input data
-   bool validInput = false;
-   if (chapter != cgi.getElements().end())
-   {
-      int chapterNum = chapter->getIntegerValue();
-      if (chapterNum > 150)
-      {
-         cout << "<p>The chapter number (" << chapterNum << ") is too high.</p>" << endl;
-      }
-      else if (chapterNum <= 0)
-      {
-         cout << "<p>The chapter must be a positive number.</p>" << endl;
-      }
-      else
-      {
-         validInput = true;
-      }
-   }
+    // Convert and check input data
+    bool validInput = true;
 
-   // TODO: OTHER INPUT VALUE CHECKS ARE NEEDED ... but that's up to you!
-
-   if (nv != cgi.getElements().end())
-   {
-      int versenum = nv->getIntegerValue();
-      if (versenum <= 0)
-      {
-         cout << "<p>The amount of verses can't be 0 or less. </p>" << endl;
-	 validInput = false;
-      }
-      else
-      {
-         validInput = true;
-      }
-   }
-
-
-   /* TODO: PUT CODE HERE TO CALL YOUR BIBLE CLASS FUNCTIONS
-    *        TO LOOK UP THE REQUESTED VERSES
-    */
-
-    if (validInput)
-{
-    int theBook = bibleV->getIntegerValue(); //this makes everthing explode
-    int bookNum = book->getIntegerValue();
-    int chapterNum = chapter->getIntegerValue();
-    int verseNum = verse->getIntegerValue();
-    int verseAmount = nv->getIntegerValue();
-
-    string s = "/home/class/csc3004/Bibles/web-complete"; //WEB default
-
-    if (theBook == 2)
+    // Check chapter
+    if (chapter == cgi.getElements().end())
     {
-    s = "/home/class/csc3004/Bibles/kjv-complete"; //KJV
-    }
-    else if (theBook == 3)
-    {
-    s = "/home/class/csc3004/Bibles/dby-complete"; //DBY
-    }
-    else if (theBook == 4)
-    {
-    s = "/home/class/csc3004/Bibles/ylt-complete"; //YLT
-    }
-    else if (theBook == 5)
-    {
-    s = "/home/class/csc3004/Bibles/webster-complete"; //webster
-    }
-
-    Bible bible(s);
-    
-    Ref ref(bookNum, chapterNum, verseNum);
-
-    LookupResult status;
-    Verse result = bible.lookup(ref, status);
-    
-    if (status == SUCCESS)
-    {
-        cout << "<p><b>"
-             << Ref::bookNumberToName(ref.getBook())  // convert number to name
-             << " "
-             << ref.getChapter()
-             << ":"
-             << ref.getVerse()
-             << "</b> "
-             << result.getVerse()  // just the verse text
-             << "</p>" << endl;
+        cout << "<p>Missing chapter.</p>" << endl;
+        validInput = false;
     }
     else
     {
-        cout << "<p>" << bible.error(status) << "</p>" << endl;
+        int chapterNum = chapter->getIntegerValue();
+        if (chapterNum > 150)
+        {
+            cout << "<p>The chapter number (" << chapterNum << ") is too high.</p>" << endl;
+            validInput = false;
+        }
+        else if (chapterNum <= 0)
+        {
+            cout << "<p>The chapter must be a positive number.</p>" << endl;
+            validInput = false;
+        }
     }
-    
-    for (int x = 1; x != verseAmount; x++)
+
+    // Check number of verses
+    if (nv == cgi.getElements().end())
     {
-        Verse result = bible.nextVerse(status);
-        Ref newRef = result.getRef();
-    
+        cout << "<p>Missing number of verses.</p>" << endl;
+        validInput = false;
+    }
+    else
+    {
+        int versenum = nv->getIntegerValue();
+        if (versenum <= 0)
+        {
+            cout << "<p>The amount of verses can't be 0 or less.</p>" << endl;
+            validInput = false;
+        }
+    }
+
+    // DEBUG: show if valid input
+    cout << "<p>DEBUG: validInput = " << validInput << "</p>" << endl;
+
+    /* TODO: PUT CODE HERE TO CALL YOUR BIBLE CLASS FUNCTIONS
+     *        TO LOOK UP THE REQUESTED VERSES
+     */
+    if (validInput)
+    {
+        int theBook = 1; // default
+        if (bibleV != cgi.getElements().end())
+        {
+            theBook = bibleV->getIntegerValue();
+        }
+
+        int bookNum = book->getIntegerValue();
+        int chapterNum = chapter->getIntegerValue();
+        int verseNum = verse->getIntegerValue();
+        int verseAmount = nv->getIntegerValue();
+
+        string s = "/home/class/csc3004/Bibles/web-complete"; //WEB default
+
+        if (theBook == 2)
+        {
+            s = "/home/class/csc3004/Bibles/kjv-complete"; //KJV
+        }
+        else if (theBook == 3)
+        {
+            s = "/home/class/csc3004/Bibles/dby-complete"; //DBY
+        }
+        else if (theBook == 4)
+        {
+            s = "/home/class/csc3004/Bibles/ylt-complete"; //YLT
+        }
+        else if (theBook == 5)
+        {
+            s = "/home/class/csc3004/Bibles/webster-complete"; //webster
+        }
+
+        Bible bible(s);
+        Ref ref(bookNum, chapterNum, verseNum);
+
+        LookupResult status;
+        Verse result = bible.lookup(ref, status);
+
         if (status == SUCCESS)
         {
             cout << "<p><b>"
-                 << Ref::bookNumberToName(newRef.getBook())  // convert number to name
+                 << Ref::bookNumberToName(ref.getBook())  // convert number to name
                  << " "
-                 << newRef.getChapter()
+                 << ref.getChapter()
                  << ":"
-                 << newRef.getVerse()
+                 << ref.getVerse()
                  << "</b> "
                  << result.getVerse()  // just the verse text
                  << "</p>" << endl;
         }
+        else
+        {
+            cout << "<p>" << bible.error(status) << "</p>" << endl;
+        }
+
+        for (int x = 1; x != verseAmount; x++)
+        {
+            Verse result = bible.nextVerse(status);
+            Ref newRef = result.getRef();
+
+            if (status == SUCCESS)
+            {
+                cout << "<p><b>"
+                     << Ref::bookNumberToName(newRef.getBook())  // convert number to name
+                     << " "
+                     << newRef.getChapter()
+                     << ":"
+                     << newRef.getVerse()
+                     << "</b> "
+                     << result.getVerse()  // just the verse text
+                     << "</p>" << endl;
+            }
+        }
     }
 
-//return 0;
-}
+    /* SEND BACK THE RESULTS
+     * Finally we send the result back to the client on the standard output stream
+     * in HTML text format.
+     * This string will be inserted as is inside a container on the web page,
+     * so we must include HTML formatting commands to make things look presentable!
+     */
+    if (validInput)
+    {
+        if (st != cgi.getElements().end())
+            cout << "Search Type: <b>" << **st << "</b>" << endl;
 
-   /* SEND BACK THE RESULTS
-    * Finally we send the result back to the client on the standard output stream
-    * in HTML text format.
-    * This string will be inserted as is inside a container on the web page,
-    * so we must include HTML formatting commands to make things look presentable!
-    */
-   if (validInput)
-   {
-      cout << "Search Type: <b>" << **st << "</b>" << endl;
-      cout << "<p>Your result: "
-           << **book << " " << **chapter << ":" << **verse
-           << "<em> The " << **nv
-           << " actual verse(s) retreived from the server should go here!</em></p>" << endl;
-   }
-   else
-   {
-      cout << "<p>Invalid Input: <em>report the more specific problem.</em></p>" << endl;
-   }
+        cout << "<p>Your result: "
+             << **book << " " << **chapter << ":" << **verse
+             << "<em> The " << **nv
+             << " actual verse(s) retrieved from the server should go here!</em></p>" << endl;
+    }
+    else
+    {
+        cout << "<p>Invalid Input: <em>report the more specific problem.</em></p>" << endl;
+    }
 
-   return 0;
+    return 0;
 }

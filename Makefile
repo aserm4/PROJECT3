@@ -9,7 +9,7 @@
 # Then use "make" to build the server program,
 # and deploy it to the live web server directory.
 # To test the program, go to http://cs.mvnu.edu/class/csc3004/USER/
-# and open the bibleajax.html link.
+# and open the bibleindex.html link.
 
 # TODO: Must replace "username" by your username
 USER= shabusch
@@ -19,19 +19,19 @@ CC= g++
 CFLAGS= -g -std=c++11 -Wall   # Added -Wall to show warnings
 
 # ADDED lookupserver + fifo support
-all:	bibleajax.cgi PutCGI PutHTML testreader lookupserver
+all:	lookupclient.cgi PutCGI PutHTML testreader lookupserver
 
 # TODO: For bibleajax.cgi, add dependencies to include
 # compiled classes from Project 1 to be linked into the executable program
 
 # ADDED fifo.o dependency
-bibleajax.cgi:	bibleajax.o Bible.o Ref.o Verse.o fifo.o
-	$(CC) $(CFLAGS) -o bibleajax.cgi bibleajax.o Bible.o Ref.o Verse.o fifo.o -lcgicc
+lookupclient.cgi:	lookupclient.o fifo.o
+	$(CC) $(CFLAGS) -o lookupclient.cgi lookupclient.o fifo.o -lcgicc
 
 # main program to handle AJAX/CGI requests for Bible references
 
-bibleajax.o:	bibleajax.cpp Ref.h Verse.h Bible.h fifo.h
-	$(CC) $(CFLAGS) -c bibleajax.cpp
+lookupclient.o:	lookupclient.cpp fifo.h
+	$(CC) $(CFLAGS) -c lookupclient.cpp
 
 # TODO: copy targets to build classes from Project 1:
 # Bible.o, Ref.o, Verse.o
@@ -64,9 +64,9 @@ testreader: testreader.o Ref.o Verse.o Bible.o
 testreader.o: testreader.cpp Ref.h Verse.h Bible.h
 	$(CC) $(CFLAGS) -c testreader.cpp
 
-PutCGI:	bibleajax.cgi
-	chmod 755 bibleajax.cgi
-	cp bibleajax.cgi /var/www/html/class/csc3004/$(USER)/cgi-bin
+PutCGI:	lookupclient.cgi
+	chmod 755 lookupclient.cgi
+	cp lookupclient.cgi /var/www/html/class/csc3004/$(USER)/cgi-bin
 
 	echo "Current contents of your cgi-bin directory: "
 	ls -l /var/www/html/class/csc3004/$(USER)/cgi-bin/
@@ -78,4 +78,4 @@ PutHTML:
 	ls -l /var/www/html/class/csc3004/$(USER)
 
 clean:
-	rm *.o core bibleajax.cgi testreader lookupserver
+	rm *.o core lookupclient.cgi testreader lookupserver

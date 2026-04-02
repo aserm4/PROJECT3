@@ -1,96 +1,77 @@
-/* CSC-3004 Project 3
- * STUDENT NAME: Shane Busch
- */
+// lookupserver.cpp
 
 #include <iostream>
-#include <fstream>
 #include <string>
-#include <cstdlib>
-
-#include "Bible.h"
+#include <sstream>
 #include "Ref.h"
 #include "Verse.h"
+#include "Bible.h"
+#include "fifo.h"
 
 using namespace std;
 
 int main()
 {
-    string requestPipe = "/home/class/csc3004/tmp/shabusch_request";
-    string replyPipe   = "/home/class/csc3004/tmp/shabusch_reply";
+    Bible bible;
 
-    //Open pipes
-    ifstream requestStream(requestPipe);
-    ofstream replyStream(replyPipe);
+    // Pipes: use only the names
+    Fifo requestPipe("request");
+    Fifo replyPipe("reply");
 
-    if (!requestStream)
-    {
-        cerr << "Error opening request pipe." << endl;
-        return 1;
-    }
+    // Create the pipes if they don't exist
+    // (Fifo constructor does this)
 
-    if (!replyStream)
-    {
-        cerr << "Error opening reply pipe." << endl;
-        return 1;
-    }
+    cout << "Server started, waiting for requests..." << endl;
 
-    //Create log file (append mode)
-    ofstream logFile("shabusch_log.log", ios::app);
-
-    if (!logFile)
-    {
-        cerr << "Error opening log file." << endl;
-        return 1;
-    }else{
-        cout << "log is open." << endl;
-    }
-
-    //Load Bible
-    Bible bible("/home/class/csc3004/Bibles/web-complete");
-
-    cout << "Lookup Server running..." << endl;
-    logFile << "Lookup Server started..." << endl;
-    logFile.flush();
-
-    string message;
-
-    //Main server loop
     while (true)
     {
-        //Read request
-        if (!getline(requestStream, message))
-            continue;
+        // Wait for request
+        requestPipe.openread();
+        string req = requestPipe.recv();
+        requestPipe.fifoclose();
 
-        //Print + log received message
-        cout << "Received: " << message << endl;
-        logFile << "Received: " << message << endl;
+        int statusInt = 1;  // default error
+        string responseText = "Unknown error.";
 
-        // Process request
-        Ref ref(message);
-        LookupResult status;
-        Verse verse = bible.lookup(ref, status);
-
-        string reply;
-
-        if (status == SUCCESS)
+        if (!req.empty())
         {
-            reply = "0|" + verse.getVerse();
+            stringstream ss(req);
+            int b, c, v, num;
+            char colon;
+
+            ss >> b >> colon >> c >> colon >> v >> colon >> num;
+
+            LookupResult status;
+
+            responseText = "";
+            for (int i = 0; i < num; i++)
+            {
+                Ref r(b, c, v + i);
+                Verse verse = bible.lookup(r, status);
+
+                if (status != SUCCESS)
+                {
+                    responseText += bible.error(status);
+                    statusInt = 1;
+                    break;
+                }
+                else
+                {
+                    responseText += verse.getVerse();
+                    if (i < num - 1)
+                        responseText += " ";  // separate verses by space
+                }
+            }
+
+            if (status == SUCCESS)
+                statusInt = 0;
         }
-        else
-        {
-            reply = "1|Error: verse not found";
-        }
 
-        //Print + log sent message
-        cout << "Sent: " << reply << endl;
-        logFile << "Sent: " << reply << endl;
-
-        // Send reply
-        replyStream << reply << endl;
-        replyStream.flush();
-
-        //Flush log file so it updates immediately
-        logFile.flush();
+        // Send response
+        string out = to_string(statusInt) + ":" + responseText;
+        replyPipe.openwrite();
+        replyPipe.send(out);
+        replyPipe.fifoclose();
     }
 
     return 0;
